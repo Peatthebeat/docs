@@ -100,7 +100,9 @@
           },
           {
             "group": "By Technology",
-            "pages": []
+            "pages": [
+              "research/devops/vault_decision"
+            ]
           },
           {
             "group": "By Topic",
@@ -108,39 +110,15 @@
           },
           {
             "group": "AI Insights",
-            "pages": []
+            "pages": [
+              "research/AI/claude"
+            ]
           }
         ]
       }
     ],
     "global": {
-      "anchors": [
-        {
-          "anchor": "Homelab",
-          "href": "/homelab",
-          "icon": "server"
-        },
-        {
-          "anchor": "AIDevOps",
-          "href": "/aidevops",
-          "icon": "diagram-project"
-        },
-        {
-          "anchor": "API Reference",
-          "href": "/api-reference/introduction",
-          "icon": "code"
-        },
-        {
-          "anchor": "Blog",
-          "href": "/blog",
-          "icon": "newspaper"
-        },
-        {
-          "anchor": "Research",
-          "href": "/research",
-          "icon": "flask"
-        }
-      ]
+      "anchors": []
     }
   },
   "logo": {
