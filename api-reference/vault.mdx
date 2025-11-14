@@ -1,0 +1,92 @@
+---
+title: 'HashiCorp Vault API'
+description: 'API reference for HashiCorp Vault operations'
+---
+
+## Overview
+
+This page documents the HashiCorp Vault API endpoints we use for secrets management in our AIDevOps project.
+
+## Base URL
+
+```
+https://your-vault-instance:8200/v1/
+```
+
+## Authentication
+
+Vault uses token-based authentication. Set your token in the `X-Vault-Token` header:
+
+```bash
+curl \
+  --header "X-Vault-Token: YOUR_TOKEN" \
+  https://vault.example.com:8200/v1/secret/data/myapp
+```
+
+## Common Operations
+
+### Read Secret
+
+<Card title="GET /secret/data/:path" icon="key">
+  Retrieve a secret from the KV secrets engine
+</Card>
+
+```bash
+curl \
+  --header "X-Vault-Token: $VAULT_TOKEN" \
+  https://vault.example.com:8200/v1/secret/data/myapp/config
+```
+
+### Write Secret
+
+<Card title="POST /secret/data/:path" icon="pen">
+  Create or update a secret
+</Card>
+
+```bash
+curl \
+  --header "X-Vault-Token: $VAULT_TOKEN" \
+  --request POST \
+  --data '{"data": {"password": "my-secret"}}' \
+  https://vault.example.com:8200/v1/secret/data/myapp/config
+```
+
+### List Secrets
+
+<Card title="LIST /secret/metadata/:path" icon="list">
+  List secrets at a path
+</Card>
+
+```bash
+curl \
+  --header "X-Vault-Token: $VAULT_TOKEN" \
+  --request LIST \
+  https://vault.example.com:8200/v1/secret/metadata/myapp
+```
+
+### Delete Secret
+
+<Card title="DELETE /secret/data/:path" icon="trash">
+  Delete a secret version
+</Card>
+
+```bash
+curl \
+  --header "X-Vault-Token: $VAULT_TOKEN" \
+  --request DELETE \
+  https://vault.example.com:8200/v1/secret/data/myapp/config
+```
+
+## Resources
+
+<Card
+  title="Official Vault API Documentation"
+  icon="book"
+  href="https://developer.hashicorp.com/vault/api-docs"
+>
+  Complete HashiCorp Vault API reference
+</Card>
+
+## Notes
+
+Add your specific Vault API usage patterns, common queries, and team conventions here as you develop your implementation.

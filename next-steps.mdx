@@ -1,0 +1,342 @@
+---
+title: "Next Steps Guide"
+description: "How to add content and organize your documentation"
+---
+
+## Overview
+
+This guide walks you through adding content to your documentation site. Follow these steps to populate each section with your content.
+
+## Quick Start: Adding a New Page
+
+### 1. Create the MDX File
+
+Create a new `.mdx` file in the appropriate directory:
+
+```bash
+# Example: Adding a homelab infrastructure page
+touch homelab/servers.mdx
+
+# Example: Adding an AIDevOps Vault guide
+touch aidevops/vault-setup.mdx
+
+# Example: Adding a blog post
+touch blog/2024-11-14-getting-started.mdx
+```
+
+### 2. Add Frontmatter
+
+Every MDX file needs frontmatter at the top:
+
+```mdx
+---
+title: "Your Page Title"
+description: "A brief description of the page"
+---
+
+## Your Content Here
+
+Write your content using markdown...
+```
+
+### 3. Add to Navigation
+
+Edit `docs.json` and add your page path to the appropriate tab/group:
+
+```json
+{
+  "group": "Infrastructure",
+  "pages": [
+    "homelab/servers",        // Add without .mdx extension
+    "homelab/networking"
+  ]
+}
+```
+
+## Section-Specific Guides
+
+### Homelab Section
+
+<Steps>
+  <Step title="Migrate Content from Wiki.js">
+    Copy your existing wiki.js pages and convert them to MDX format. Send me the wiki.js content and I can help convert it.
+  </Step>
+
+  <Step title="Organize by Categories">
+    Create subdirectories for different areas:
+    - `homelab/infrastructure/` - Servers, hardware
+    - `homelab/services/` - Docker, applications
+    - `homelab/networking/` - Network config, VLANs
+    - `homelab/maintenance/` - Procedures, troubleshooting
+  </Step>
+
+  <Step title="Update Navigation">
+    Add pages to the appropriate groups in `docs.json` under the Homelab tab
+  </Step>
+</Steps>
+
+**Example File Structure:**
+```
+homelab/
+├── index.mdx
+├── infrastructure/
+│   ├── servers.mdx
+│   └── hardware.mdx
+├── services/
+│   ├── docker.mdx
+│   └── plex.mdx
+└── networking/
+    └── vlans.mdx
+```
+
+### AIDevOps Section
+
+<Steps>
+  <Step title="Document as You Build">
+    Create pages for each component as you work on it with Louis
+  </Step>
+
+  <Step title="Vault Documentation">
+    Document your Vault journey:
+    - `aidevops/vault/deployment.mdx` - How you deployed Vault
+    - `aidevops/vault/configuration.mdx` - Initial configuration
+    - `aidevops/vault/policies.mdx` - Access policies
+    - `aidevops/vault/troubleshooting.mdx` - Issues and solutions
+  </Step>
+
+  <Step title="Share Workflows">
+    Document how you and Louis work together asynchronously
+  </Step>
+</Steps>
+
+**Example Entry:**
+```mdx
+---
+title: "Deploying HashiCorp Vault"
+description: "Step-by-step guide for deploying Vault in our environment"
+---
+
+## Deployment Method
+
+We chose to deploy Vault using Docker Compose...
+
+## Prerequisites
+
+- Docker installed
+- Network access configured
+
+## Steps
+
+1. Create docker-compose.yml
+2. Configure Vault storage backend
+3. Initialize Vault
+...
+
+## Challenges
+
+We encountered X issue and resolved it by Y...
+```
+
+### API Reference Section
+
+<Steps>
+  <Step title="Add New API Pages">
+    Create a new MDX file for each API you consume
+  </Step>
+
+  <Step title="Document Common Operations">
+    Include the API calls you actually use with examples
+  </Step>
+
+  <Step title="Use OpenAPI (Optional)">
+    If the API has an OpenAPI spec, you can auto-generate docs
+  </Step>
+</Steps>
+
+**Example Structure:**
+```
+api-reference/
+├── introduction.mdx
+├── vault.mdx
+├── github-api.mdx
+└── openapi/
+    └── vault-spec.json
+```
+
+### Blog Section
+
+<Steps>
+  <Step title="Name with Dates">
+    Use date prefixes for chronological order: `2024-11-14-title.mdx`
+  </Step>
+
+  <Step title="Document Learnings">
+    Write about problems solved, new discoveries, or project updates
+  </Step>
+
+  <Step title="Share with Louis">
+    Use blog posts to share progress updates on the AIDevOps project
+  </Step>
+</Steps>
+
+**Example Blog Post:**
+```mdx
+---
+title: "Setting Up HashiCorp Vault - Day 1"
+description: "Our experience deploying Vault for secrets management"
+date: "2024-11-14"
+---
+
+## What We Tried
+
+Today we started deploying HashiCorp Vault...
+
+## What Worked
+
+The Docker deployment was straightforward...
+
+## What Didn't Work
+
+We had issues with TLS certificates...
+
+## Next Steps
+
+Tomorrow we'll tackle...
+```
+
+### Research Section
+
+<Steps>
+  <Step title="Organize by Topic">
+    Create subdirectories for different research areas
+  </Step>
+
+  <Step title="Aggregate AI Responses">
+    Save valuable responses from Claude, ChatGPT, etc. that you want to reference later
+  </Step>
+
+  <Step title="Link to Sources">
+    Include links to original documentation or research sources
+  </Step>
+</Steps>
+
+**Example Structure:**
+```
+research/
+├── index.mdx
+├── vault/
+│   ├── auth-methods.mdx
+│   └── ha-setup.mdx
+├── kubernetes/
+│   └── networking.mdx
+└── devops/
+    └── cicd-patterns.mdx
+```
+
+## Mintlify Features to Use
+
+### Cards for Navigation
+
+```mdx
+<Card title="Page Title" icon="icon-name" href="/path/to/page">
+  Description of the page
+</Card>
+```
+
+### Code Blocks with Syntax Highlighting
+
+````mdx
+```bash
+docker compose up -d
+```
+
+```python
+import hvac
+client = hvac.Client(url='http://localhost:8200')
+```
+````
+
+### Callouts and Notes
+
+```mdx
+<Note>
+  Important information users should know
+</Note>
+
+<Warning>
+  Warning about potential issues
+</Warning>
+
+<Tip>
+  Helpful tip or best practice
+</Tip>
+```
+
+### Tabs for Multiple Options
+
+```mdx
+<Tabs>
+  <Tab title="Docker">
+    Docker installation instructions...
+  </Tab>
+  <Tab title="Kubernetes">
+    Kubernetes installation instructions...
+  </Tab>
+</Tabs>
+```
+
+### Steps for Sequential Instructions
+
+```mdx
+<Steps>
+  <Step title="First Step">
+    Do this first...
+  </Step>
+  <Step title="Second Step">
+    Then do this...
+  </Step>
+</Steps>
+```
+
+## Preview Your Changes
+
+```bash
+# Install Mintlify CLI (if not already installed)
+npm i -g mintlify
+
+# Run local preview
+mintlify dev
+
+# Opens at http://localhost:3000
+```
+
+## Workflow
+
+1. **Create** MDX file with content
+2. **Add** to `docs.json` navigation
+3. **Preview** with `mintlify dev`
+4. **Commit** to git
+5. **Push** to GitHub (auto-deploys if connected to Mintlify)
+
+## Need Help?
+
+- Send me wiki.js pages to convert
+- Share Vault setup steps to document
+- Ask about Mintlify features and formatting
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="Mintlify Documentation" icon="book" href="https://mintlify.com/docs">
+    Official Mintlify docs
+  </Card>
+  <Card title="MDX Documentation" icon="markdown" href="https://mdxjs.com/">
+    Learn MDX syntax
+  </Card>
+  <Card title="Mintlify Components" icon="layer-group" href="https://mintlify.com/docs/content/components">
+    All available components
+  </Card>
+  <Card title="Icon Reference" icon="icons" href="https://fontawesome.com/icons">
+    FontAwesome icons (used in cards)
+  </Card>
+</CardGroup>

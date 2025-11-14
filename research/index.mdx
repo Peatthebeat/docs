@@ -1,0 +1,136 @@
+---
+title: "Research Hub"
+description: "Aggregated deep research and AI-assisted discoveries"
+---
+
+## Research Collection
+
+This section aggregates valuable research from across various sources - AI conversations, documentation deep dives, technical investigations, and knowledge synthesis.
+
+## Purpose
+
+As you work with AI assistants (Claude, ChatGPT, etc.) and dig into technologies, you discover valuable insights worth preserving. This is your knowledge repository.
+
+## Organization
+
+<CardGroup cols={2}>
+  <Card title="By Technology" icon="microchip" href="/research/technology">
+    Research organized by technology stack (Vault, Kubernetes, etc.)
+  </Card>
+  <Card title="By Topic" icon="book" href="/research/topics">
+    Research by subject area (security, networking, automation, etc.)
+  </Card>
+  <Card title="AI Conversations" icon="robot" href="/research/ai-insights">
+    Particularly valuable AI-assisted research and explanations
+  </Card>
+  <Card title="Best Practices" icon="check-circle" href="/research/best-practices">
+    Patterns and practices discovered through research
+  </Card>
+</CardGroup>
+
+## How to Use This Section
+
+### Capture AI Research
+
+When you get valuable responses from AI assistants:
+
+1. Create a new MDX file for the topic
+2. Copy the relevant parts of the conversation
+3. Add your own notes and context
+4. Link to related documentation
+
+**Example:**
+
+```mdx
+---
+title: "HashiCorp Vault Authentication Methods Deep Dive"
+description: "Comprehensive research on Vault auth methods from AI conversations"
+date: "2024-11-14"
+source: "Claude Code conversation"
+---
+
+## Question Asked
+
+How do I choose between different Vault auth methods?
+
+## Research Summary
+
+[Paste valuable AI response here]
+
+## My Notes
+
+Based on our use case with Louis, we decided to use...
+
+## Related Resources
+
+- [Vault Official Docs](...)
+- [Our Vault Setup Guide](/aidevops/vault/deployment)
+```
+
+### Document Deep Dives
+
+When you spend time researching a topic:
+
+- Save key findings
+- Include code examples
+- Link to sources
+- Add your interpretation
+
+### Cross-Reference
+
+Link research to your practical documentation:
+
+- Research explores concepts deeply
+- Main docs show practical implementation
+- Blog posts document the journey
+
+## Suggested Structure
+
+```
+research/
+├── index.mdx
+├── vault/
+│   ├── auth-methods.mdx
+│   ├── ha-architecture.mdx
+│   └── security-hardening.mdx
+├── kubernetes/
+│   ├── networking-deep-dive.mdx
+│   └── storage-options.mdx
+├── devops/
+│   ├── gitops-patterns.mdx
+│   └── cicd-best-practices.mdx
+└── ai-insights/
+    ├── infrastructure-design.mdx
+    └── troubleshooting-approaches.mdx
+```
+
+## Benefits
+
+<AccordionGroup>
+  <Accordion title="Build Your Knowledge Base">
+    Over time, you'll have a searchable repository of everything you've learned
+  </Accordion>
+
+  <Accordion title="Share with Louis">
+    Research becomes a shared resource for your collaborative project
+  </Accordion>
+
+  <Accordion title="Avoid Repeating Research">
+    Next time you need this information, it's already documented
+  </Accordion>
+
+  <Accordion title="Track Your Learning">
+    See how your understanding evolves over time
+  </Accordion>
+</AccordionGroup>
+
+## Getting Started
+
+1. Create subdirectories for your research areas
+2. Add MDX files with your research findings
+3. Update `docs.json` to organize them in the navigation
+4. Cross-link with your main documentation
+
+<Tip>
+  Start simple. Even a quick note with an AI response is valuable. You can always expand it later.
+</Tip>

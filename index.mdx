@@ -1,97 +1,85 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Documentation Hub"
+description: "Your central hub for homelab, projects, and API references"
 ---
 
-## Setting up
+## Welcome
 
-Get your documentation site up and running in minutes.
+This documentation site organizes five main areas: your homelab infrastructure, collaborative AIDevOps projects, API references for services you consume, blog posts documenting your journey, and research aggregation from AI-assisted deep dives.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## Main Sections
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
+<CardGroup cols={3}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Homelab"
+    icon="server"
+    href="/homelab"
   >
-    Edit your docs locally and preview them in real time.
+    Infrastructure, services, and maintenance documentation for your homelab environment
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="AIDevOps Project"
+    icon="diagram-project"
+    href="/aidevops"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Collaborative project with Louis - building an AIDevOps stack with Vault, IaC, and automation
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
+    title="API Reference"
+    icon="code"
     href="/api-reference/introduction"
   >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+    Documentation for external APIs you consume (Vault, and more)
   </Card>
   <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
+    title="Blog"
+    icon="newspaper"
+    href="/blog"
   >
-    Add sample code to demonstrate how to use your product.
+    Updates, learnings, and discoveries from ongoing projects
   </Card>
   <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
+    title="Research"
+    icon="flask"
+    href="/research"
   >
-    Display images and other media.
+    Deep research aggregation and AI-assisted knowledge discovery
+  </Card>
+</CardGroup>
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card
+    title="Next Steps Guide"
+    icon="map"
+    href="/next-steps"
+  >
+    Learn how to add content and organize your documentation
   </Card>
   <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
+    title="HashiCorp Vault"
+    icon="vault"
+    href="/aidevops/index"
   >
-    Write once and reuse across your docs.
+    Currently deploying and configuring Vault for secrets management
   </Card>
-</Columns>
+  <Card
+    title="Vault API Reference"
+    icon="book-open"
+    href="/api-reference/vault"
+  >
+    API endpoints and examples for Vault operations
+  </Card>
+  <Card
+    title="Start Blogging"
+    icon="pen-to-square"
+    href="/blog"
+  >
+    Document your journey and share discoveries
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## About This Site
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Built with [Mintlify](https://mintlify.com) - the same documentation platform Anthropic uses. Clean, readable, and easy to maintain.

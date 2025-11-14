@@ -1,33 +1,35 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: 'API Reference'
+description: 'Documentation for external APIs we consume'
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+## Overview
 
-## Welcome
+This section documents the external APIs we consume in our projects. Rather than documenting APIs we expose, this is a reference for the third-party and internal APIs we integrate with.
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+## Available API References
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+<CardGroup cols={2}>
+  <Card title="HashiCorp Vault API" icon="vault" href="/api-reference/vault">
+    Secrets management API endpoints and usage examples
+  </Card>
+  <Card title="Add More APIs" icon="plus" href="/api-reference/introduction">
+    Document additional APIs as you integrate them
+  </Card>
+</CardGroup>
 
-## Authentication
+## Purpose
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+Use this section to:
+- Document API endpoints you frequently call
+- Store example requests and responses
+- Track authentication methods and credentials management
+- Share API integration patterns with your team
 
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
-```
+## Adding New APIs
+
+You can document APIs using:
+1. **OpenAPI/Swagger specs** - Auto-generate from OpenAPI files
+2. **Manual MDX pages** - Write custom documentation with examples
+
+Each API should have its own section with clear examples of the calls you make in your projects.
