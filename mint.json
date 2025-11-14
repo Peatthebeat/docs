@@ -1,0 +1,10 @@
+{
+  "font": {
+    "family": "Inter",
+    "weight": 400,
+    "headings": {
+      "family": "Inter",
+      "weight": 600
+    }
+  }
+}
