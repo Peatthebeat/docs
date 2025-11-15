@@ -1,0 +1,205 @@
+---
+title: "Automation and Infrastructure as Code Integration"
+description: "Part 4: Integrating Vault with Kubernetes, Ansible, Terraform, and Proxmox"
+---
+
+# Part 4: Automation and Infrastructure as Code (IaC) Integration
+
+A central part of Vault's value is its deep integration with the automation and IaC ecosystem. This section details how to connect Vault to the user-specified tools: Kubernetes, Ansible, Terraform, and Proxmox.
+
+## 4.1 Automating Authentication: M2M with AppRole and Kubernetes
+
+Before an automated tool can read a secret, it must prove its own identity. This machine-to-machine (M2M) authentication is a critical bootstrap problem.
+
+### Walkthrough 1: AppRole (The Generic M2M Method)
+
+The AppRole auth method is designed specifically for automated workflows and services.66 It works like a 2-factor authentication for machines, using two pieces of data:
+
+- **`RoleID`:** The "username." It is a static, non-secret identifier for the role.67
+
+- **`SecretID`:** The "password." It is a secret, ephemeral, and can be one-time-use.67
+
+
+A machine must possess *both* to log in and acquire a token.69 This is ideal for virtual machines, CI/CD pipelines (like Jenkins 68), or any application *outside* of a platform-native identity system.
+
+### Walkthrough 2: Kubernetes Auth (The Platform-Native Method)
+
+Within Kubernetes, the AppRole method is unnecessary and complex (it requires securely distributing the `SecretID`). The superior method is the Kubernetes Auth Method.70
+
+This method leverages the *native identity* of a Kubernetes pod. By default, every pod has a JSON Web Token (JWT) mounted, which cryptographically represents its Service Account.70
+
+The workflow is far more secure and elegant:
+
+1. An operator enables K8s auth in Vault: `vault auth enable kubernetes`.70
+
+2. The operator configures Vault with the K8s API details.70
+
+3. The operator creates a Vault role that *binds* a Vault policy (e.g., `my-app-policy`) to a specific K8s Service Account (e.g., `my-app-sa`).70
+
+4. The application pod reads its *own* JWT from its local filesystem.
+
+5. The pod sends this JWT to Vault: `vault write auth/kubernetes/login role=... jwt=...`.70
+
+6. Vault, receiving this JWT, calls the Kubernetes **TokenReview API** to ask the K8s API, "Is this JWT, which claims to be `my-app-sa`, valid?".70
+
+7. The K8s API confirms its validity.
+
+8. Vault, seeing the JWT is valid and bound to a role, issues a Vault token with `my-app-policy` attached.
+
+
+### Table 6: Authentication Methods (A Decision Guide)
+
+| **Method** | **Type** | **Primary Use Case** |
+| --- | --- | --- |
+| **Userpass** 26 | Human | Simple login, homelab, "break-glass" admin.9 |
+| **LDAP** 72 | Human | Enterprise human users, mapping Active Directory/LDAP groups to policies.9 |
+| **AppRole** 66 | Machine | **Generic M2M:** VMs, CI/CD jobs, legacy apps.68 |
+| **Kubernetes** 70 | Machine | **Platform-Native:** Pods authenticating via K8s Service Accounts.70 |
+| **AWS/GCP/Azure** 74 | Machine | **Platform-Native:** Cloud instances (e.g., EC2) authenticating via IAM Roles / MSI.74 |
+
+## 4.2 Managing Vault *with* Terraform (Vault as Code)
+
+Instead of running manual `vault` CLI commands, the enterprise workflow is to treat Vault's *configuration* as code.75 The `hashicorp/vault` Terraform provider 76 is used to declaratively manage Vault itself.
+
+The admin policy, `userpass` auth method, and secrets engines from Part 1 and 3 can be codified:
+
+```
+// main.tf
+terraform {
+  required_providers {
+    vault = {
+      source = "hashicorp/vault"
+      version = "3.23.0"
+    }
+  }
+}
+
+provider "vault" {
+  // Address and token must be set, e.g., via env vars
+  // VAULT_ADDR and VAULT_TOKEN
+}
+
+// Codifies: vault auth enable userpass
+resource "vault_auth_backend" "userpass" {
+  type = "userpass"
+}
+
+// Codifies: vault policy write admin admin.hcl
+resource "vault_policy" "admin" {
+  name   = "admin"
+  policy = file("policies/admin.hcl")
+}
+
+// Codifies: vault secrets enable database
+resource "vault_secrets_engine" "database" {
+  type = "database"
+}
+```
+
+This provides version control, auditability, and repeatability for your entire Vault configuration.75
+
+## 4.3 Consuming Vault *in* Terraform (Dynamic Cloud Credentials)
+
+This is a more advanced pattern where Terraform *consumes* dynamic secrets from Vault to *feed* into other providers.58This is the solution for eliminating static cloud credentials (e.g., `AWS_ACCESS_KEY_ID`) from your CI/CD environment.
+
+The workflow is a powerful provider-in-provider chain 58:
+
+1. Terraform authenticates to the `vault` provider (e.g., with a short-lived token).
+
+2. It uses a *data source* to read from Vault's AWS secrets engine (which was pre-configured to generate dynamic IAM credentials).
+
+3. Vault *dynamically generates* a short-lived, least-privilege AWS IAM credential (access key, secret key, session token) with a 5-minute TTL.
+
+4. These credentials are *fed directly* into the `aws` provider's configuration.
+
+
+```
+// 1. Authenticate to Vault
+provider "vault" {}
+
+// 2. Read dynamic credentials from Vault's AWS engine
+data "vault_aws_access_credentials" "creds" {
+  backend = "aws"
+  role    = "my-terraform-role"
+}
+
+// 3. Feed dynamic credentials into the AWS provider
+provider "aws" {
+  region     = "us-east-1"
+  access_key = data.vault_aws_access_credentials.creds.access_key
+  secret_key = data.vault_aws_access_credentials.creds.secret_key
+  token      = data.vault_aws_access_credentials.creds.security_token
+}
+
+// 4. Provision infrastructure using the temporary credentials
+resource "aws_instance" "example" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "t2.micro"
+}
+```
+
+A critical security warning for this pattern is that Terraform persists secrets it reads into its `terraform.tfstate` file and plan files.76 While this is a major risk for *static* secrets, its risk is highly mitigated in this dynamic pattern. The AWS credentials written to the state file are useless because they expired and were revoked by Vault 5 minutes after the `terraform apply` completed.58
+
+## 4.4 Integrating with Ansible (The `hashi_vault` Lookup)
+
+Ansible integrates with Vault for just-in-time secret retrieval using the `community.hashi_vault.hashi_vault` lookup plugin.78 This allows a playbook to fetch secrets at runtime rather than storing them (even encrypted with `ansible-vault`) on disk.11
+
+A playbook can authenticate (e.g., using AppRole) and retrieve a secret:
+
+```
+- name: Retrieve application secrets from Vault
+  ansible.builtin.set_fact:
+    # The lookup plugin handles auth and retrieval in one step
+    app_secrets: "&#123;&#123; lookup('community.hashi_vault.hashi_vault', 'secret=kv/data/my-app/config url=https://vault.example.com:8200 auth_method=approle role_id=my-ansible-role-id secret_id=my-ansible-secret-id') &#125;&#125;"
+
+- name: Use the secret
+  ansible.builtin.template:
+    src: config.j2
+    dest: /etc/app/config.ini
+  vars:
+    api_key: "&#123;&#123; app_secrets.api_key &#125;&#125;"
+```
+
+## 4.5 Integrating with Proxmox (The Community Solution)
+
+A direct request was made for Proxmox and Terraform. Research reveals a common pain point: there is **no official HashiCorp secrets engine for Proxmox**.81
+
+- **The Workaround (Static):** The most common method, as described by a user, is to create a static, long-lived Proxmox API token and store it in Vault's KV store. The Terraform Proxmox provider then authenticates by reading this *static* secret from Vault.82 This is insecure, as the token is long-lived and does not provide least-privilege.
+
+- **The Community Solution (Dynamic):** The community has developed a solution. A thread on the Proxmox forums 81 discusses this exact problem and points to a third-party plugin: `vault-plugin-secrets-proxmox`.81 This plugin, which must be compiled and manually registered with Vault, provides the *true* dynamic secrets workflow:
+
+  1. The plugin is configured with a master Proxmox API token.
+
+  2. An operator creates a Vault role (`proxmox/role/...`) that defines permissions for ephemeral tokens.
+
+  3. Terraform or Ansible can then `read proxmox/creds/...` to receive a *brand new, short-lived, permission-scoped* Proxmox API token for each run.81
+
+
+This community plugin is the correct "enterprise" pattern for integrating Proxmox, though it comes with the standard caveats of using third-party, non-HashiCorp-supported code.
+
+## 4.6 Client-Side Integration: Vault Agent (The "Sidecar" Pattern)
+
+For legacy applications that are "Vault-unaware" (i.e., they cannot be modified to speak the Vault API and read a file like `config.ini`), Vault provides **Vault Agent**.83
+
+Vault Agent is a client daemon that solves two problems 83:
+
+1. **Token Management:** It handles authenticating to Vault (e.g., via AppRole or K8s Auth) and automatically manages the token's lifecycle (renewal, re-authentication).83
+
+2. **Secret Injection:** It uses Consul Template markup 83 to retrieve one or more secrets and *render them to a file* on the local filesystem.83
+
+
+The most powerful implementation is the **Vault Agent Injector** for Kubernetes.84
+
+1. A developer deploys an application with simple annotations, like `vault.hashicorp.com/role: 'my-app'`.86
+
+2. The Injector (a Kubernetes Controller) automatically mutates the pod definition at creation time.85
+
+3. It adds a `vault-agent` *sidecar* container 86 and an `init` container.85
+
+4. The agent container authenticates (using the pod's Service Account JWT), retrieves the secrets, and renders them to a shared in-memory volume (e.g., `/vault/secrets/config.ini`).85
+
+5. The main application container starts, reads its configuration from `/vault/secrets/config.ini`, and functions normally, completely unaware that Vault exists or that its credentials were dynamically injected just moments before.
+
+---
+
+**Next:** Continue to [Part 5: Conclusion](/research/devops/vault/vault_configuration/part_5_conclusion)

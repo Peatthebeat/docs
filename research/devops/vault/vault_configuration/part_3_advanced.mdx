@@ -1,0 +1,213 @@
+---
+title: "Advanced Use Cases and Secrets Engines"
+description: "Part 3: Unleashing Vault - Dynamic secrets, PKI, and encryption services"
+---
+
+# Part 3: Unleashing Vault: A Deep Dive into Advanced Use Cases
+
+This section directly addresses the request to "explore other uses than just plain secrets storage." The true power of Vault lies not in its static Key/Value store, but in its dynamic **Secrets Engines**. These are plugins that interact with other systems to generate *on-demand, ephemeral* credentials.
+
+## Table 5: Core Secret Engines (Beyond KV)
+
+| **Secret Engine** | **What It Solves** | **Example Use Case** |
+| --- | --- | --- |
+| **Key/Value (KV)** | Storage of static, arbitrary secrets.47 | Storing an application's external API key. |
+| **Database (DB)** | Dynamic, least-privilege database access.49 | An app getting a *unique*, 1-hour user/pass for PostgreSQL.51 |
+| **Transit** | Application-level encryption (Encryption-as-a-Service).52 | Encrypting user PII in an application's database.53 |
+| **PKI** | Dynamic certificate generation (Private CA).48 | A microservice getting an ephemeral mTLS certificate on startup.54 |
+| **SSH** | Dynamic, one-time SSH passwords/certs.48 | An operator getting temporary, just-in-time access to a prod server. |
+| **Cloud (AWS/GCP/Azure)** | Dynamic, least-privilege cloud credentials.48 | A CI/CD job getting a *unique*, 5-minute IAM role to deploy to S3.58 |
+
+## 3.1 Use Case 1: The Dynamic Database (DB) Secrets Engine
+
+### Concept
+
+Instead of creating one static database user, hardcoding its long-lived password, and sharing it across dozens of application instances, Vault solves this "secret sprawl".50
+
+The Database Secrets Engine connects to a database with a single, powerful administrative credential. When an application needs database access, it *asks Vault* for a credential. Vault *dynamically creates a brand new, unique* database user (with limited permissions) and returns that user/password to the app. This credential has a short Time-To-Live (TTL), and when the lease expires, Vault automatically revokes it by deleting the user from the database.49
+
+This provides "non-repudiation" (every action in the database is tied to a unique, ephemeral user) and "automatic rotation" (the secret ceases to exist after its lease).50
+
+### Walkthrough (PostgreSQL)
+
+This guide is based on the official tutorials for setting up PostgreSQL dynamic secrets.51
+
+1. **Enable the DB Engine:**
+
+  ```
+  $ vault secrets enable database
+  ```
+
+2. **Configure the Connection:** This is the key step. You must provide Vault with its *one* administrative (root-level) user for PostgreSQL. Vault stores this credential and uses it to manage other, less-privileged users.50
+
+  ```
+  $ vault write database/config/postgresql \
+     plugin_name=postgresql-database-plugin \
+     allowed_roles="my-app-role" \
+     connection_url="postgresql://&lt;root_user&gt;:&lt;root_pass&gt;@&lt;db_host&gt;:5432/postgres?sslmode=disable"
+  ```
+
+3. **Create a Role:** The "role" defines *what kind of user* Vault will create. It maps a Vault role to a set of SQL statements.51 Create a file `my-role.sql`:
+
+  ```
+  -- my-role.sql
+  CREATE ROLE "&#123;&#123;name&#125;&#125;" WITH LOGIN PASSWORD '&#123;&#123;password&#125;&#125;' VALID UNTIL '&#123;&#123;expiration&#125;&#125;';
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO "&#123;&#123;name&#125;&#125;";
+  ```
+
+  Now, create the role in Vault and point it to this SQL.
+
+  ```
+  $ vault write database/roles/my-app-role \
+     db_name=postgresql \
+     creation_statements=@my-role.sql \
+     default_ttl="1h" \
+     max_ttl="24h"
+  ```
+
+4. **Consume the Secret:** An authenticated application simply runs:
+
+  ```
+  $ vault read database/creds/my-app-role
+  ```
+
+  Vault will return a *brand new, unique* username and password (e.g., `v-my-app-r-aef3...`), valid for 1 hour. When the lease expires, Vault automatically connects to PostgreSQL and runs the `REVOKE` and `DROP ROLE` commands.60
+
+## 3.2 Use Case 2: Encryption as a Service (The Transit Engine)
+
+### Concept
+
+The Transit Secrets Engine provides "Encryption as a Service" (EaaS).52 It allows applications to offload all cryptographic functions (encryption, decryption, hashing, signing) to Vault. Crucially, Vault *never stores the data it encrypts*.52
+
+This solves a major compliance and development burden. It relieves application developers from the burden of proper encryption/decryption, such as implementing AES-GCM.52 Instead, developers make a simple API call, and the central security team manages the encryption keys (creation, rotation, lifecycle) within Vault.61
+
+### Walkthrough (Encrypting Application Data)
+
+This walkthrough demonstrates encrypting and decrypting a piece of application data.52
+
+1. **Enable the Transit Engine:**
+
+  ```
+  $ vault secrets enable transit
+  ```
+
+2. **Create an Encryption Key:** This creates a named encryption key (e.g., `customer-data`) managed by Vault.
+
+  ```
+  $ vault write -f transit/keys/customer-data
+  ```
+
+3. **Application Workflow (Encrypt):**
+
+  - An application has sensitive plaintext: `{"credit_card": "1234-5678-..."}`
+
+  - The application must Base64-encode this plaintext.52
+
+    ```
+    $ plaintext=$(base64 <<< '{"credit_card": "1234-5678-..."}')
+    ```
+
+  - The application sends the *Base64 plaintext* to Vault to be encrypted.
+
+    ```
+    $ vault write transit/encrypt/customer-data plaintext=$plaintext
+    ```
+
+  - Vault responds with the ciphertext.
+
+    ciphertext: vault:v1:aBcD...
+
+  - The application now stores this *ciphertext* (the `vault:v1:...` string) in its primary database. The plaintext is discarded from memory.
+
+4. **Application Workflow (Decrypt):**
+
+  - The application retrieves the *ciphertext* from its database.
+
+  - It sends the *ciphertext* to Vault to be decrypted.
+
+    ```
+    $ vault write transit/decrypt/customer-data ciphertext="vault:v1:aBcD..."
+    ```
+
+  - Vault responds with the Base64-encoded plaintext.52
+
+    plaintext: eyJjcmVkaXRfY2FyZCI6ICIxMjM0LTU2Nzgt...
+
+  - The application Base64-decodes this response to retrieve the original data.
+
+    ```
+    $ echo "eyJjcmVkaXRfY2FyZCI6ICIxMjM0LTU2Nzgt..." | base64 --decode
+    {"credit_card": "1234-5678-..."}
+    ```
+
+## 3.3 Use Case 3: The Dynamic Public Key Infrastructure (PKI) Engine
+
+### Concept
+
+The PKI Secrets Engine transforms Vault into a dynamic, private Certificate Authority (CA).54 Instead of manually generating private keys and Certificate Signing Requests (CSRs) for internal servers, Vault automates this entire process.
+
+This is the primary enabler for a modern, zero-trust network that relies on mutual-TLS (mTLS) for service-to-service communication. Services can be configured to request *ephemeral* certificates from Vault on startup, with TTLs as short as a few hours or even minutes.54 This eliminates the security and management nightmare of Certificate Revocation Lists (CRLs), as the certificates simply expire instead of needing to be revoked.54
+
+### Walkthrough (Building a 2-Tier CA)
+
+Best practice dictates a 2-tier (or 3-tier) hierarchy. A high-security, often-offline Root CA signs an Intermediate CA (ICA), and the online ICA is what issues the short-lived certificates. This walkthrough builds this structure entirely within Vault.63
+
+1. **Enable and Create the Root CA:**
+
+  ```
+  # Enable a PKI engine for the root
+  $ vault secrets enable -path=pki_root pki
+  # Set the root's TTL to 10 years
+  $ vault secrets tune -max-lease-ttl=87600h pki_root
+  # Generate the root certificate
+  $ vault write pki_root/root/generate/internal common_name="my-homelab-root"
+  ```
+
+2. **Enable and Create the Intermediate CA:**
+
+  ```
+  # Enable a separate PKI engine for the intermediate
+  $ vault secrets enable -path=pki_int pki
+  # Set the intermediate's TTL to 5 years
+  $ vault secrets tune -max-lease-ttl=43800h pki_int
+  # Generate a CSR for the intermediate, saving the CSR to a file
+  $ vault write -format=json pki_int/intermediate/generate/internal \
+     common_name="my-homelab-intermediate" | jq -r '.data.csr' > intermediate.csr
+  ```
+
+3. **Sign the Intermediate CSR with the Root CA:**
+
+  ```
+  # The Root CA signs the intermediate's CSR
+  $ vault write -format=json pki_root/root/sign-intermediate \
+     csr=@intermediate.csr \
+     common_name="my-homelab-intermediate" | jq -r '.data.certificate' > intermediate.crt
+  ```
+
+4. **Import the Signed Certificate into the Intermediate CA:**
+
+  ```
+  # Upload the signed certificate back to the intermediate
+  $ vault write pki_int/intermediate/set-signed certificate=@intermediate.crt
+  ```
+
+5. **Create a Role:** A "role" defines the *type* of certificates the intermediate is allowed to issue (e.g., allowed domains, key usage, TTLs).65
+
+  ```
+  $ vault write pki_int/roles/web-server \
+     allowed_domains="app.example.com,*.app.example.com" \
+     allow_subdomains=true \
+     max_ttl="72h"
+  ```
+
+6. **Consume the Certificate:** A new web server, after authenticating to Vault, simply runs:
+
+  ```
+  $ vault write pki_int/issue/web-server common_name="app1.app.example.com"
+  ```
+
+  Vault will instantly return a brand new, valid X.509 certificate, its private key, and the issuing CA chain, all valid for 72 hours.65
+
+---
+
+**Next:** Continue to [Part 4: Automation and Infrastructure as Code](/research/devops/vault/vault_configuration/part_4_automation)

@@ -1,0 +1,185 @@
+---
+title: "Enterprise Hardening and High Availability"
+description: "Part 2: From Homelab to Enterprise - Advanced hardening and HA cluster setup"
+---
+
+# Part 2: From Homelab to Enterprise: Advanced Hardening and High Availability
+
+With the fundamentals established, we now scale our implementation to meet the demands of a "full enterprise implementation." This involves moving from a single, manually-operated node to a resilient, automated, and governance-driven cluster.
+
+## 2.1 The Enterprise Reference Architecture: 5-Node HA Raft Cluster
+
+A single Vault node is a single point of failure and is not recommended for production.17 The official HashiCorp reference architecture for a highly available (HA) cluster using Integrated Storage (Raft) is a 5-node cluster distributed across 3 Availability Zones (AZs).27
+
+The logic for this specific topology is based on the quorum requirements of the Raft consensus algorithm.4
+
+- A 3-node cluster requires a quorum of 2 nodes ($1 + 1$). It can only tolerate the loss of 1 node. If an AZ containing 2 nodes fails, the cluster goes down.
+
+- A 5-node cluster requires a quorum of 3 nodes ($2 + 1$). It can tolerate the loss of 2 nodes.
+
+
+The 5-node/3-AZ architecture is explicitly designed for maximum resiliency: it can survive the failure of 2 individual nodes *or* the failure of an *entire* AZ (which may contain 2 nodes) without any service interruption.27 This is the level of fault tolerance required for mission-critical enterprise infrastructure.
+
+As established in Part 1, Integrated Storage (Raft) is strongly recommended for this, as it avoids the massive operational overhead and complexity of managing a separate, external HA Consul cluster.5
+
+## 2.2 Enterprise-Grade Hardening: A Step-by-Step Guide
+
+The baseline hardening from Part 1 is the starting point. An enterprise deployment adds layers of automation, encryption, and auditing on top.
+
+### Step 1: End-to-End TLS
+
+The `tls_disable = 1` from our homelab is unacceptable in production. Enterprise deployments mandate end-to-end TLS.22This is not just for traffic from the client to Vault; it includes *all* network connections 16:
+
+- **Client to Load Balancer:** Must be over TLS.
+
+- **Load Balancer to Vault Node:** Must be over TLS.
+
+- **Vault Node to Vault Node (Raft):** Must be over TLS.
+
+- **Vault Node to Storage Backend (if external):** Must be over TLS.
+
+
+A common mistake is to terminate TLS at the load balancer. This is explicitly discouraged 16 as it sends unencrypted traffic (including potentially sensitive data) over your internal network.
+
+### Step 2: Automated Operations with Auto-Unseal
+
+In our 5-node HA cluster, nodes will be rebooted, replaced by auto-scaling groups, or terminated during immutable upgrades. A manual unseal process requiring 3 operators to enter Shamir keys is operationally impossible.8
+
+**Auto-Unseal is mandatory for HA**.21
+
+As described in Table 2, Auto-Unseal delegates the unseal key to a trusted, external Key Management System (KMS), such as AWS KMS, GCP KMS, or Azure Key Vault.8
+
+The workflow is as follows:
+
+1. The Vault cluster is configured with a `seal` stanza pointing to the cloud KMS key.
+
+2. On boot, a Vault node authenticates to the cloud provider (e.g., via an AWS IAM Role).
+
+3. It retrieves the encrypted Root Key from the storage backend.
+
+4. It presents this encrypted key to the KMS API and asks it to decrypt it.
+
+5. The KMS (which is itself a highly available, secure service) decrypts the key and returns it to the Vault node, which loads it into memory and becomes unsealed.
+
+
+This process transfers the trust from human operators (holding Shamir keys) to the cloud platform's IAM and KMS systems, enabling a fully automated, resilient cluster that can heal itself.
+
+### Step 3: Immutable Infrastructure
+
+Enterprise Vault servers should be treated as "immutable".22 Operators should *never* SSH into a Vault server to perform an upgrade.22
+
+The correct workflow is:
+
+1. Use a tool like Packer 28 to build a new, hardened machine image (e.g., an AMI) with the *new* version of the Vault binary.
+
+2. Deploy a new set of Vault servers using this image.
+
+3. These new nodes join the existing Raft cluster, receive the replicated data, and become unsealed via Auto-Unseal.
+
+4. Once the new nodes are healthy and part of the cluster, the old servers are terminated one by one.
+
+
+This pattern reduces administrative overhead, eliminates configuration drift, and provides a reliable, testable upgrade and rollback path.22
+
+### Step 4: Robust Auditing
+
+In an enterprise, auditing is a non-negotiable security control. It is not optional. Vault's audit devices create a detailed, tamper-proof log of every single request and response.6
+
+- **Best Practice:** You must enable *at least two* audit devices of different types (e.g., a local `file` device and a remote `syslog` device).16
+
+- **Audit as a Failsafe:** Auditing in Vault is a *blocking operation*. Vault is designed to *refuse* to service a request if it cannot log that request to *all* configured audit devices.6 This prevents any unaudited access to secrets. This also means that your audit logging infrastructure (e.g., syslog server, disk space for files) becomes a critical, high-availability component of your Vault deployment.
+
+- **Critical Events to Monitor:** Your Security Information and Event Management (SIEM) tool must be configured to alert on critical events in the audit logs 29, such as:
+
+  - Root token creation
+
+  - Root token usage
+
+  - Modifications to audit logging configuration
+
+  - Modifications to authentication methods
+
+  - Spikes in authentication failures (brute-force attempt)
+
+  - Spikes in permission denied failures (privilege-seeking behavior)
+
+
+### Table 3: Hardening Checklist (Homelab vs. Enterprise)
+
+This table provides a clear maturity model for scaling a Vault deployment, summarizing the journey from a secure homelab to a production-hardened enterprise cluster.
+
+| **Security Control** | **Homelab (Baseline)** | **Enterprise (Production Hardened)** |
+| --- | --- | --- |
+| **Cluster Size** | 1 Node 14 | 5 Nodes / 3 AZs 27 |
+| **Storage** | Integrated Storage (Raft) 4 | Integrated Storage (Raft) 17 |
+| **Unsealing** | Manual (Shamir's Keys) 19 | Automated (KMS Auto-Unseal) 21 |
+| **Encryption** | TLS Disabled or Self-Signed | End-to-End TLS 16 |
+| **Root Token** | Revoked after initial setup 25 | Revoked. Generation requires quorum. 25 |
+| **OS** | Unprivileged user, swap/core-dump disabled 22 | Same, plus Immutable Infrastructure 22 |
+| **Auditing** | Single file (if enabled) | *Multiple* redundant audit devices 29 |
+| **Tenancy** | Single, "global" | Namespaces for Multi-Tenancy 31 |
+| **Policy** | ACL Policies (HCL) | ACLs + Sentinel for Governance 32 |
+
+## 2.3 Enterprise-Only Features: Governance and Scale
+
+The most significant differences between the open-source (OSS) and Enterprise versions of Vault are not the core features—KV, dynamic secrets, and HA are all available in OSS.32 The Enterprise license enables features specifically for *governance* and *scale* in large, complex organizations.34
+
+### Table 4: Vault Editions (OSS vs. Enterprise vs. HCP)
+
+| **Feature** | **Open Source (OSS)** | **Enterprise (Self-Hosted)** | **HCP (Managed)** |
+| --- | --- | --- | --- |
+| **Core Features** | Yes (KV, DB, PKI, HA) 32 | Yes | Yes |
+| **Namespaces** | No  | **Yes** (Multi-Tenancy) 32 | Yes 36 |
+| **Sentinel** | No  | **Yes** (Policy as Code) 32 | Yes |
+| **Replication (DR)** | No  | **Yes** (Warm Standby) 32 | Yes |
+| **Replication (Perf)** | No  | **Yes** (Read Replicas) 35 | Yes |
+| **Ops Burden** | High (Self-managed) | High (Self-managed) | **Low** (Managed by HashiCorp) 37 |
+
+### Multi-Tenancy with Namespaces
+
+In a large organization, you cannot have the finance, development, and security teams all sharing the same "global" space. **Namespaces** (an Enterprise feature) solve this by creating a "Vault-within-a-Vault".31
+
+A Namespace is not just a folder; it is a logically isolated tenant with its own set of:
+
+- Policies
+
+- Auth Methods
+
+- Secrets Engines
+
+- Tokens
+
+- Identity Entities and Groups 31
+
+
+This allows a central security team to operate the "root" Vault cluster and delegate a new, empty Namespace to the development team, who can then self-manage their *own* policies and secret engines *within* that namespace, unable to see or affect any other tenant.31 This is the "Vault as a Service" model.
+
+### Policy-as-Code with Sentinel
+
+Standard ACL policies (in OSS) are an *allow-list*. They answer the question: "**WHAT** can you access?" (e.g., `path "kv/prod/*" { capabilities = ["read"] }`).
+
+**Sentinel** (an Enterprise feature) is a policy-as-code governance framework. It answers the much more complex question: "**HOW, WHEN, and WHY** are you allowed to access it?".32
+
+Sentinel policies (called Role Governing Policies and Endpoint Governing Policies) can enforce logic that ACLs cannot.41 For example, a Sentinel policy can state:
+
+- "You can only read `kv/prod/*` *if* your request originates from a corporate IP range."
+
+- "You can only generate a root token *if* you have passed an MFA check in the last 10 minutes."
+
+- "You can only create new policies *if* it is during standard business hours."
+
+
+This provides fine-grained, conditional, and automated governance that is essential for compliance and risk management in large enterprises.
+
+### Global Scale with Replication
+
+Vault Enterprise provides two modes of replication to scale globally 42:
+
+1. **Disaster Recovery (DR) Replication:** This creates a *warm standby* cluster.42 The DR cluster is a perfect, byte-for-byte mirror of the primary, replicating *everything* (including configuration, policies, secrets, tokens, and leases). It cannot service any client requests.5 Its sole purpose is to be "promoted" to become the new primary in the event of a catastrophic failure of the main cluster, minimizing downtime and data loss.44
+
+2. **Performance Replication:** This creates *read-only replicas*.16 This is used to scale read-heavy workloads (like EaaS decryption) across the globe. A team in Sydney can hit their local read-replica instead of incurring latency to the primary cluster in New York. These replicas *do not* replicate tokens or leases; clients authenticate locally to the replica.46
+
+
+---
+
+**Next:** Continue to [Part 3: Advanced Use Cases](/research/devops/vault/vault_configuration/part_3_advanced)

@@ -101,8 +101,17 @@
           {
             "group": "By Technology",
             "pages": [
-              "research/devops/vault_decision",
-              "research/devops/vault_setup"
+              "research/devops/vault_decision"
+            ]
+          },
+          {
+            "group": "Vault Configuration",
+            "pages": [
+              "research/devops/vault/vault_configuration/part_1_fundamentals",
+              "research/devops/vault/vault_configuration/part_2_enterprise",
+              "research/devops/vault/vault_configuration/part_3_advanced",
+              "research/devops/vault/vault_configuration/part_4_automation",
+              "research/devops/vault/vault_configuration/part_5_conclusion"
             ]
           },
           {
