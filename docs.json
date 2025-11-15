@@ -45,9 +45,7 @@
           },
           {
             "group": "HashiCorp Vault",
-            "pages": [
-              "research/devops/vault_setup"
-            ]
+            "pages": []
           },
           {
             "group": "Infrastructure",
