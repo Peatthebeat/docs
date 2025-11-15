@@ -262,4 +262,68 @@ Your Vault server is now secured. The all-powerful root token is gone, and all a
 
 ---
 
+<Accordion title="The Real Constraints on the Admin User">
+
+Even though the admin policy grants `["create", "read", "update", "delete", "list", "sudo"]` on path `"*"`, there are **system-level API paths and operations** that are specifically reserved for root tokens and cannot be granted through policies at all.
+
+### What the Admin User **Cannot** Do (Despite Broad Permissions)
+
+Based on Vault's architecture, the admin user is locked out of:
+
+1. **Root Token Management**
+
+  - Cannot generate new root tokens via `sys/generate-root`
+  - Cannot perform root token rotation operations
+  - The root token exists *outside* the policy system entirely
+
+2. **Seal/Unseal Operations**
+
+  - Cannot seal the Vault (`sys/seal`)
+  - Cannot participate in unseal operations (`sys/unseal`)
+  - Cannot view seal status in ways that expose cryptographic material
+
+3. **Initialization**
+
+  - Cannot re-initialize an already initialized Vault
+  - Cannot access certain bootstrap configuration endpoints
+
+4. **Policy System Limitations**
+
+  - While they can create/modify most policies, there may be protected system policies
+  - Cannot escape the policy evaluation framework itself
+
+5. **Master Key Operations**
+
+  - Cannot perform key rotation at the root level
+  - Cannot access certain cryptographic barrier operations
+
+### Why This Matters Beyond Audit Trails
+
+The difference isn't just about leaving breadcrumbs - it's about **architectural containment**:
+
+| **Aspect** | **Root Token** | **Admin User** |
+| --- | --- | --- |
+| **Operates within policy system** | No - bypasses entirely | Yes - still evaluated against policies |
+| **Can generate new root tokens** | Yes | No - not possible through any policy |
+| **Can seal Vault** | Yes | No - system operation reserved for root |
+| **Credential rotation vulnerability** | Cannot rotate (no auth method) | Can be rotated/disabled via policy changes |
+| **Compromise containment** | Game over - complete control | Can be revoked; other admins can respond |
+| **Multi-admin environment** | Unclear who did what | Each admin has distinct identity |
+
+### The Practical Security Boundary
+
+The key insight is this: even if an admin user's policy looks like it grants "everything," Vault's internal routing layer has **hardcoded checks** for certain system-critical paths that require a root token specifically - not just "root-equivalent permissions."
+
+So while the admin can manage secrets engines, auth methods, policies, tokens, and nearly all operational tasks, they fundamentally **cannot**:
+
+- Create another entity with root-level access
+- Bypass the unsealing process
+- Escape the policy evaluation system
+
+The document's emphasis on revoking the root token is about eliminating the one account that exists *outside* these architectural controls. Once gone, even a fully compromised admin account can theoretically be contained by other admins or through recovery procedures, whereas a compromised root token means total system compromise with no recovery path short of re-initialization.
+
+</Accordion>
+
+---
+
 **Next:** Continue to [Part 2: Enterprise Hardening and High Availability](/research/devops/vault/vault_configuration/part_2_enterprise)
