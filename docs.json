@@ -45,7 +45,9 @@
           },
           {
             "group": "HashiCorp Vault",
-            "pages": []
+            "pages": [
+              "research/devops/vault_setup"
+            ]
           },
           {
             "group": "Infrastructure",
@@ -101,7 +103,8 @@
           {
             "group": "By Technology",
             "pages": [
-              "research/devops/vault_decision"
+              "research/devops/vault_decision",
+              "research/devops/vault_setup"
             ]
           },
           {
