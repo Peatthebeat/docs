@@ -517,8 +517,8 @@ This guide is based on the official tutorials for setting up PostgreSQL dynamic 
   
   ```
   -- my-role.sql
-  CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
-  GRANT SELECT ON ALL TABLES IN SCHEMA public TO "{{name}}";
+  CREATE ROLE "&#123;&#123;name&#125;&#125;" WITH LOGIN PASSWORD '&#123;&#123;password&#125;&#125;' VALID UNTIL '&#123;&#123;expiration&#125;&#125;';
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO "&#123;&#123;name&#125;&#125;";
   ```
   
   Now, create the role in Vault and point it to this SQL.
@@ -858,14 +858,14 @@ YAML
 - name: Retrieve application secrets from Vault
   ansible.builtin.set_fact:
     # The lookup plugin handles auth and retrieval in one step
-    app_secrets: "{{ lookup('community.hashi_vault.hashi_vault',                       'secret=kv/data/my-app/config                        url=https://vault.example.com:8200                        auth_method=approle                        role_id=my-ansible-role-id                        secret_id=my-ansible-secret-id') }}"
+    app_secrets: "&#123;&#123; lookup('community.hashi_vault.hashi_vault',                       'secret=kv/data/my-app/config                        url=https://vault.example.com:8200                        auth_method=approle                        role_id=my-ansible-role-id                        secret_id=my-ansible-secret-id') &#125;&#125;"
 
 - name: Use the secret
   ansible.builtin.template:
     src: config.j2
     dest: /etc/app/config.ini
   vars:
-    api_key: "{{ app_secrets.api_key }}"
+    api_key: "&#123;&#123; app_secrets.api_key &#125;&#125;"
 ```
 
 ### 4.5 Integrating with Proxmox (The Community Solution)
